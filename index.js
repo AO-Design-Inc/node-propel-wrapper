@@ -1,13 +1,13 @@
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
+const process = require('process');
 const https = require('https');
 const propel_url = process.env.PROPEL_AUTH_URL;
 const propel_auth_key = process.env.PROPEL_API_KEY;
-const propel_cookie = process.env.PROPEL_COOKIE;
 
 const getDataFromRequestPromiseGenerator = (
     options,
-    callback = (response) => {}
+    callback = () => {}
 ) =>
     new Promise((resolve, reject) => {
         const DATA = [];
@@ -52,6 +52,20 @@ function extractBearerToken(req) {
     return authHeaderParts[1];
 }
 
+async function logout() {
+	const authDataToken = (await fetchAuthentication.next()).value['access_token'];
+	const options = {
+		hostname: propel_url,
+		path: '/api/v1/logout',
+		method: 'POST',
+		headers: { authorization: 'Bearer ' + authDataToken }
+	};
+
+	return getDataFromRequestPromiseGenerator( options );
+}
+
+
+
 function getTokenMetadata() {
     const DATA = [];
 
@@ -87,7 +101,7 @@ async function verifyRequestFactory() {
             const payload = jwt.verify(
                 bearerToken,
                 TokenMetadata.verifier_key_pem,
-                (options = ['RS256'])
+				{ algorithms: ['RS256'] }
             );
             return payload;
         } catch (err) {
@@ -112,21 +126,16 @@ async function* fetchAuthenticationInfo() {
         headers: { Cookie: `refresh_token=${curRefreshToken}` },
     };
 
-    try {
         const authInfo = await getDataFromRequestPromiseGenerator(
             options,
             (response) => {
                 if (Object.hasOwn(response.headers, 'set-cookie')) {
-                    try {
                         fs.writeFileSync(
                             '.cookie',
                             refreshTokenFromCookieRegex.exec(
                                 response.headers['set-cookie'][0]
                             )[1]
                         );
-                    } catch (err) {
-                        throw err;
-                    }
                 } else throw new Error('no set-cookie!');
             }
         );
@@ -135,10 +144,10 @@ async function* fetchAuthenticationInfo() {
             yield authInfo;
         }
         yield* fetchAuthenticationInfo();
-    } catch (err) {
-        throw err;
-    }
 }
 
+const fetchAuthentication = fetchAuthenticationInfo();
+
 exports.verifyRequestAndGetUser = verifyRequestFactory();
-exports.fetchAuthenticationInfo = fetchAuthenticationInfo;
+exports.fetchAuthentication = fetchAuthentication;
+exports.logout = logout;
