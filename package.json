@@ -1,0 +1,11 @@
+{
+  "name": "@feather/propel-wrapper",
+  "version": "1.0.0",
+  "description": "simple propelauth wrapper used by feather applications to handle logins on both client and server",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Abhishek Cherath",
+  "license": "MIT"
+}
